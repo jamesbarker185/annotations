@@ -259,3 +259,47 @@
     background-color: rgba(239, 68, 68, 0.15);
     border-color: rgba(239, 68, 68, 0.4);
 }
+
+/* OCR Button */
+.ocr-btn {
+    background: none;
+    border: none;
+    color: #3b82f6;
+    /* blue-500 */
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    text-transform: none;
+    margin-left: auto;
+    float: right;
+    display: flex;
+    align-items: center;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.ocr-btn:hover:not(:disabled) {
+    background-color: rgba(59, 130, 246, 0.1);
+}
+
+.ocr-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.sc-loading {
+    animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: .5;
+    }
+}

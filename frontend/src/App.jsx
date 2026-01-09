@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Save, Trash2, Plus, ChevronLeft, ChevronRight, Download, CheckCircle, Box as BoxIcon } from 'lucide-react';
+import { Layout, Save, Trash2, Plus, ChevronLeft, ChevronRight, Download, CheckCircle, Box as BoxIcon, ScanLine } from 'lucide-react';
 import Canvas from './components/Canvas';
 import './index.css';
 import './App.css';
@@ -10,6 +10,7 @@ function App() {
     const [selectedBoxId, setSelectedBoxId] = useState(null);
     const [selectedIndices, setSelectedIndices] = useState(new Set());
     const [loading, setLoading] = useState(true);
+    const [ocrLoading, setOcrLoading] = useState(false);
 
     // Load initial data
     useEffect(() => {
@@ -76,6 +77,76 @@ function App() {
         // Update the text field, not rectanglelabels
         newTasks[currentIdx].annotations[0].result[selectedBoxId].value.text = text;
         setTasks(newTasks);
+    };
+
+    const handleRunOCR = async () => {
+        if (selectedBoxId === null) return;
+        setOcrLoading(true);
+
+        try {
+            const box = boxes[selectedBoxId];
+            const { x, y, width, height } = box.value;
+            const imgSrc = `http://localhost:3000${currentTask.data.image}`;
+
+            // Load image to crop
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.src = imgSrc;
+
+            await new Promise((resolve, reject) => {
+                if (img.complete) resolve();
+                else {
+                    img.onload = resolve;
+                    img.onerror = reject;
+                }
+            });
+
+            // Calculate pixel coordinates
+            // x, y, w, h are in percentages (0-100)
+            const pixelX = (x / 100) * img.naturalWidth;
+            const pixelY = (y / 100) * img.naturalHeight;
+            const pixelW = (width / 100) * img.naturalWidth;
+            const pixelH = (height / 100) * img.naturalHeight;
+
+            // Crop via temporary canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = pixelW;
+            canvas.height = pixelH;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, pixelX, pixelY, pixelW, pixelH, 0, 0, pixelW, pixelH);
+
+            const base64Image = canvas.toDataURL('image/png');
+
+            // Send to OCR API
+            const response = await fetch('http://localhost:3000/api/ocr', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: base64Image })
+            });
+
+            const data = await response.json();
+
+            if (data.error) {
+                console.error(data.error);
+                alert("OCR Error: " + data.error);
+                return;
+            }
+
+            if (data.text) {
+                // Update text field
+                const newTasks = [...tasks];
+                newTasks[currentIdx].annotations[0].result[selectedBoxId].value.text = data.text;
+                setTasks(newTasks);
+            } else {
+                alert("No text detected");
+            }
+
+        } catch (err) {
+            console.error("OCR Failed:", err);
+            alert("OCR process failed");
+        } finally {
+            setOcrLoading(false);
+        }
     };
 
     const toggleSelection = (index) => {
@@ -236,7 +307,24 @@ function App() {
                         </div>
 
                         <div className="prop-group">
-                            <label className="prop-label">Text Value</label>
+                            <label className="prop-label">
+                                Text Value
+                                <button
+                                    className="ocr-btn"
+                                    onClick={handleRunOCR}
+                                    disabled={ocrLoading}
+                                    title="Run PaddleOCR on this box"
+                                >
+                                    {ocrLoading ? (
+                                        <span className="sc-loading">...</span>
+                                    ) : (
+                                        <>
+                                            <ScanLine size={12} style={{ marginRight: 4 }} />
+                                            Run OCR
+                                        </>
+                                    )}
+                                </button>
+                            </label>
                             <input
                                 className="prop-input"
                                 value={boxes[selectedBoxId].value.text || ''}

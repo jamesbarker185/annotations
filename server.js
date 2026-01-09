@@ -187,6 +187,49 @@ app.post('/api/save', (req, res) => {
     }
 });
 
+// Endpoint to run OCR
+const { exec } = require('child_process');
+const crypto = require('crypto');
+
+app.post('/api/ocr', (req, res) => {
+    const { image } = req.body;
+    if (!image) {
+        return res.status(400).json({ error: 'No image data provided' });
+    }
+
+    // Decode base64 image
+    const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    // Create a temp file
+    const tempFileName = `temp_ocr_${crypto.randomBytes(4).toString('hex')}.png`;
+    const tempFilePath = path.join(__dirname, tempFileName);
+
+    fs.writeFile(tempFilePath, buffer, (err) => {
+        if (err) {
+            console.error('Error writing temp file:', err);
+            return res.status(500).json({ error: 'Failed to process image' });
+        }
+
+        // Run Python OCR script
+        exec(`python ocr_script.py "${tempFilePath}"`, (error, stdout, stderr) => {
+            // Clean up temp file
+            fs.unlink(tempFilePath, (unlinkErr) => {
+                if (unlinkErr) console.error('Error deleting temp file:', unlinkErr);
+            });
+
+            if (error) {
+                console.error(`OCR Execution Error: ${error}`);
+                return res.status(500).json({ error: 'OCR processing failed' });
+            }
+
+            // Trim whitespace
+            const text = stdout.trim();
+            res.json({ text });
+        });
+    });
+});
+
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`Using data source: ${MERGED_DATASET_PATH}`);
