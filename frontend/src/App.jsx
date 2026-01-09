@@ -11,6 +11,20 @@ function App() {
     const [selectedIndices, setSelectedIndices] = useState(new Set());
     const [loading, setLoading] = useState(true);
     const [ocrLoading, setOcrLoading] = useState(false);
+    const [notification, setNotification] = useState(null);
+
+    // Notification helper
+    const showNotification = (message, type = 'success') => {
+        setNotification({ message, type });
+    };
+
+    // Auto-hide notification after 3 seconds
+    useEffect(() => {
+        if (notification) {
+            const timer = setTimeout(() => setNotification(null), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [notification]);
 
     // Load initial data
     useEffect(() => {
@@ -101,7 +115,7 @@ function App() {
     const handleBatchOCR = async () => {
         const boxesToProcess = boxes.filter(b => !b.value.text || b.value.text.trim() === "");
         if (boxesToProcess.length === 0) {
-            alert("No empty boxes to process");
+            showNotification("No empty boxes to process", "info");
             return;
         }
 
@@ -168,7 +182,7 @@ function App() {
 
         } catch (err) {
             console.error(err);
-            alert("Batch OCR failed: " + err.message);
+            showNotification("Batch OCR failed: " + err.message, "error");
         } finally {
             setOcrLoading(false);
         }
@@ -223,7 +237,7 @@ function App() {
 
             if (data.error) {
                 console.error(data.error);
-                alert("OCR Error: " + data.error);
+                showNotification("OCR Error: " + data.error, "error");
                 return;
             }
 
@@ -232,13 +246,14 @@ function App() {
                 const newTasks = [...tasks];
                 newTasks[currentIdx].annotations[0].result[selectedBoxId].value.text = data.text;
                 setTasks(newTasks);
+                showNotification("Text detected: " + data.text, "success");
             } else {
-                alert("No text detected");
+                showNotification("No text detected", "info");
             }
 
         } catch (err) {
             console.error("OCR Failed:", err);
-            alert("OCR process failed");
+            showNotification("OCR process failed", "error");
         } finally {
             setOcrLoading(false);
         }
@@ -262,15 +277,27 @@ function App() {
         }
     };
 
-    const saveResults = () => {
-        fetch('http://localhost:3000/api/save', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(tasks)
-        })
-            .then(res => res.json())
-            .then(() => alert('Saved!'))
-            .catch(err => alert('Error saving'));
+    const saveResults = async (silent = false) => {
+        try {
+            const res = await fetch('http://localhost:3000/api/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(tasks)
+            });
+            await res.json();
+            if (!silent) {
+                showNotification('Saved!', 'success');
+            }
+        } catch (err) {
+            showNotification('Error saving', 'error');
+        }
+    };
+
+    const handleNavigate = async (newIdx) => {
+        if (newIdx === currentIdx) return;
+        await saveResults(true); // Silent autosave
+        setCurrentIdx(newIdx);
+        setSelectedBoxId(null);
     };
 
     const handleDownload = () => {
@@ -321,10 +348,7 @@ function App() {
                             <div
                                 key={i}
                                 className={`task-item ${i === currentIdx ? 'active' : ''}`}
-                                onClick={() => {
-                                    setCurrentIdx(i);
-                                    setSelectedBoxId(null);
-                                }}
+                                onClick={() => handleNavigate(i)}
                             >
                                 <div className="task-item-header">
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -359,13 +383,13 @@ function App() {
                 {/* Toolbar */}
                 <div className="toolbar">
                     <div className="nav-controls">
-                        <button className="icon-btn" onClick={() => setCurrentIdx(Math.max(0, currentIdx - 1))}>
+                        <button className="icon-btn" onClick={() => handleNavigate(Math.max(0, currentIdx - 1))}>
                             <ChevronLeft size={16} />
                         </button>
                         <span className="nav-text">
                             {currentIdx + 1} / {tasks.length}
                         </span>
-                        <button className="icon-btn" onClick={() => setCurrentIdx(Math.min(tasks.length - 1, currentIdx + 1))}>
+                        <button className="icon-btn" onClick={() => handleNavigate(Math.min(tasks.length - 1, currentIdx + 1))}>
                             <ChevronRight size={16} />
                         </button>
 
@@ -462,6 +486,13 @@ function App() {
                     </div>
                 )}
             </div>
+
+            {/* Notification Toast */}
+            {notification && (
+                <div className={`notification-toast notification-${notification.type}`}>
+                    {notification.message}
+                </div>
+            )}
 
         </div>
     )
