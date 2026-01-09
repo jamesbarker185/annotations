@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, Save, Trash2, Plus, ChevronLeft, ChevronRight, Download, CheckCircle, Box as BoxIcon, ScanLine } from 'lucide-react';
+import { Layout, Save, Trash2, Plus, ChevronLeft, ChevronRight, Download, CheckCircle, Box as BoxIcon, ScanLine, Scan } from 'lucide-react';
 import Canvas from './components/Canvas';
 import './index.css';
 import './App.css';
@@ -77,6 +77,82 @@ function App() {
         // Update the text field, not rectanglelabels
         newTasks[currentIdx].annotations[0].result[selectedBoxId].value.text = text;
         setTasks(newTasks);
+    };
+
+    const handleBatchOCR = async () => {
+        const boxesToProcess = boxes.filter(b => !b.value.text || b.value.text.trim() === "");
+        if (boxesToProcess.length === 0) {
+            alert("No empty boxes to process");
+            return;
+        }
+
+        setOcrLoading(true);
+        try {
+            const imgSrc = `http://localhost:3000${currentTask.data.image}`;
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.src = imgSrc;
+
+            await new Promise((resolve, reject) => {
+                if (img.complete) resolve();
+                else { img.onload = resolve; img.onerror = reject; }
+            });
+
+            const imagesPayload = [];
+
+            boxes.forEach((box, idx) => {
+                if (!box.value.text || box.value.text.trim() === "") {
+                    const { x, y, width, height } = box.value;
+                    const pixelX = (x / 100) * img.naturalWidth;
+                    const pixelY = (y / 100) * img.naturalHeight;
+                    const pixelW = (width / 100) * img.naturalWidth;
+                    const pixelH = (height / 100) * img.naturalHeight;
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = pixelW;
+                    canvas.height = pixelH;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, pixelX, pixelY, pixelW, pixelH, 0, 0, pixelW, pixelH);
+
+                    // Use index as ID to easily map back
+                    imagesPayload.push({
+                        id: idx.toString(),
+                        image: canvas.toDataURL('image/png')
+                    });
+                }
+            });
+
+            const response = await fetch('http://localhost:3000/api/ocr-batch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ images: imagesPayload })
+            });
+
+            const data = await response.json();
+            if (data.error) throw new Error(data.error);
+
+            const newTasks = [...tasks];
+            const currentResult = newTasks[currentIdx].annotations[0].result;
+
+            let updatedCount = 0;
+            data.results.forEach(res => {
+                const idx = parseInt(res.id);
+                if (currentResult[idx]) {
+                    currentResult[idx].value.text = res.text;
+                    updatedCount++;
+                }
+            });
+
+            setTasks(newTasks);
+            // Optional: Don't alert if prefer silent update, but good for feedback
+            // alert(`Batch OCR complete! Updated ${updatedCount} boxes.`);
+
+        } catch (err) {
+            console.error(err);
+            alert("Batch OCR failed: " + err.message);
+        } finally {
+            setOcrLoading(false);
+        }
     };
 
     const handleRunOCR = async () => {
@@ -272,6 +348,19 @@ function App() {
                         </span>
                         <button className="icon-btn" onClick={() => setCurrentIdx(Math.min(tasks.length - 1, currentIdx + 1))}>
                             <ChevronRight size={16} />
+                        </button>
+
+                        <div style={{ width: 1, height: 20, backgroundColor: '#27272a', margin: '0 8px' }} />
+
+                        <button
+                            className="icon-btn"
+                            onClick={handleBatchOCR}
+                            disabled={ocrLoading}
+                            title="Auto-fill Missing (Batch OCR)"
+                            style={{ width: 'auto', padding: '0 8px', gap: 6, fontSize: 12 }}
+                        >
+                            {ocrLoading ? <span className="sc-loading">...</span> : <Scan size={14} />}
+                            <span>Auto-fill</span>
                         </button>
                     </div>
 

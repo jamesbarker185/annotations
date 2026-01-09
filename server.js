@@ -214,20 +214,90 @@ app.post('/api/ocr', (req, res) => {
         // Run Python OCR script
         exec(`python ocr_script.py "${tempFilePath}"`, (error, stdout, stderr) => {
             // Clean up temp file
-            fs.unlink(tempFilePath, (unlinkErr) => {
-                if (unlinkErr) console.error('Error deleting temp file:', unlinkErr);
-            });
+            fs.unlink(tempFilePath, () => { });
 
             if (error) {
                 console.error(`OCR Execution Error: ${error}`);
                 return res.status(500).json({ error: 'OCR processing failed' });
             }
 
-            // Trim whitespace
-            const text = stdout.trim();
+            // Output format is: filepath|text
+            const output = stdout.trim();
+            const parts = output.split('|');
+            const text = parts.length > 1 ? parts.slice(1).join('|') : output;
+
             res.json({ text });
         });
     });
+});
+
+app.post('/api/ocr-batch', (req, res) => {
+    const { images } = req.body; // Expects [{ id: "...", image: "base64..." }]
+    if (!images || !Array.isArray(images) || images.length === 0) {
+        return res.status(400).json({ error: 'No images provided' });
+    }
+
+    const tempFiles = [];
+    const idMap = new Map(); // filepath -> boxId
+
+    // 1. Create all temp files
+    const writePromises = images.map(item => {
+        return new Promise((resolve, reject) => {
+            const base64Data = item.image.replace(/^data:image\/\w+;base64,/, "");
+            const buffer = Buffer.from(base64Data, 'base64');
+            const tempFileName = `temp_ocr_${crypto.randomBytes(8).toString('hex')}.png`;
+            const tempFilePath = path.join(__dirname, tempFileName);
+
+            idMap.set(tempFilePath, item.id);
+            tempFiles.push(tempFilePath);
+
+            fs.writeFile(tempFilePath, buffer, (err) => {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
+    });
+
+    Promise.all(writePromises)
+        .then(() => {
+            // 2. Run Python script with all paths
+            // Wrap paths in quotes
+            const args = tempFiles.map(p => `"${p}"`).join(' ');
+
+            exec(`python ocr_script.py ${args}`, { maxBuffer: 10 * 1024 * 1024 }, (error, stdout, stderr) => {
+                // 3. Cleanup files
+                tempFiles.forEach(f => fs.unlink(f, () => { }));
+
+                // 4. Parse results
+                const results = [];
+                const lines = stdout.trim().split('\n');
+
+                lines.forEach(line => {
+                    if (!line.trim()) return;
+
+                    // line: filepath|text
+                    const parts = line.split('|');
+                    if (parts.length >= 2) {
+                        const filePath = parts[0].trim();
+                        // Text might contain pipes, rejoin safely
+                        const text = parts.slice(1).join('|').trim();
+                        const id = idMap.get(filePath);
+
+                        if (id) {
+                            results.push({ id, text });
+                        }
+                    }
+                });
+
+                res.json({ results });
+            });
+        })
+        .catch(err => {
+            console.error('Batch processing error:', err);
+            // Try to cleanup
+            tempFiles.forEach(f => fs.unlink(f, () => { }).catch(() => { }));
+            res.status(500).json({ error: 'Failed to process batch' });
+        });
 });
 
 app.listen(PORT, () => {
