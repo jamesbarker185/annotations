@@ -1,0 +1,261 @@
+.app-container {
+    display: flex;
+    height: 100vh;
+    background-color: #09090b;
+    /* zinc-950 */
+    color: #e4e4e7;
+    /* zinc-200 */
+    overflow: hidden;
+    font-family: 'Inter', sans-serif;
+}
+
+/* Sidebar */
+.sidebar {
+    width: 300px;
+    background-color: #09090b;
+    border-right: 1px solid #27272a;
+    /* zinc-800 */
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid #27272a;
+    font-weight: 600;
+    font-size: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #18181b;
+    /* zinc-900 */
+}
+
+/* Utilities */
+.save-btn {
+    background: none;
+    border: none;
+    color: #10b981;
+    /* emerald-500 */
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.save-btn:hover {
+    background-color: rgba(16, 185, 129, 0.1);
+    color: #34d399;
+    /* emerald-400 */
+}
+
+/* Task List */
+.task-list {
+    flex: 1;
+    overflow-y: auto;
+    background-color: #09090b;
+}
+
+.task-item {
+    padding: 14px 20px;
+    cursor: pointer;
+    border-bottom: 1px solid #18181b;
+    /* zinc-900 */
+    transition: background-color 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    position: relative;
+}
+
+.task-item:hover {
+    background-color: #18181b;
+}
+
+.task-item.active {
+    background-color: #18181b;
+    border-right: 3px solid #3b82f6;
+    /* blue-500 */
+}
+
+.task-item.active::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 3px;
+    background-color: #3b82f6;
+}
+
+.task-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.task-id {
+    font-size: 11px;
+    font-weight: 600;
+    color: #71717a;
+    /* zinc-500 */
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.status-icon {
+    color: #10b981;
+    /* emerald-500 */
+}
+
+.task-filename {
+    font-size: 13px;
+    color: #e4e4e7;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 500;
+}
+
+.task-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #71717a;
+}
+
+.custom-checkbox {
+    accent-color: #3b82f6;
+    cursor: pointer;
+    width: 14px;
+    height: 14px;
+}
+
+/* Main Area */
+.main-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    background-color: #000000;
+}
+
+.toolbar {
+    height: 56px;
+    border-bottom: 1px solid #27272a;
+    background-color: #18181b;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    justify-content: space-between;
+}
+
+.nav-controls {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+}
+
+.nav-text {
+    font-size: 14px;
+    color: #a1a1aa;
+    /* zinc-400 */
+    font-feature-settings: "tnum";
+    font-variant-numeric: tabular-nums;
+}
+
+.help-text {
+    font-size: 13px;
+    color: #71717a;
+}
+
+/* Properties Panel */
+.properties-panel {
+    width: 300px;
+    border-left: 1px solid #27272a;
+    background-color: #09090b;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+}
+
+.panel-title {
+    font-weight: 600;
+    margin-bottom: 24px;
+    color: #fafafa;
+    font-size: 16px;
+    margin-top: 0;
+    letter-spacing: -0.01em;
+}
+
+.prop-group {
+    margin-bottom: 20px;
+}
+
+.prop-label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    color: #71717a;
+    margin-bottom: 8px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+}
+
+.prop-input {
+    width: 100%;
+    box-sizing: border-box;
+    background-color: #18181b;
+    border: 1px solid #3f3f46;
+    /* zinc-700 */
+    border-radius: 6px;
+    padding: 10px;
+    color: #e4e4e7;
+    font-size: 14px;
+    transition: border-color 0.2s;
+    font-family: inherit;
+}
+
+.prop-input:focus {
+    border-color: #3b82f6;
+    outline: none;
+    box-shadow: 0 0 0 1px #3b82f6;
+}
+
+.debug-info {
+    padding: 16px;
+    background-color: #18181b;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #a1a1aa;
+    line-height: 1.6;
+    border: 1px solid #27272a;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+.delete-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px;
+    background-color: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    /* red-500 */
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 24px;
+    transition: all 0.2s;
+    font-weight: 500;
+}
+
+.delete-btn:hover {
+    background-color: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.4);
+}
