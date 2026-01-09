@@ -1,8 +1,29 @@
+# Dependencies
 node_modules/
-dist/
-.env
-.DS_Store
 frontend/node_modules/
+dist/
 frontend/dist/
-*.backup.json
-label_studio_tasks*.json
+
+# Environment
+.env
+
+# Data and Media (Ignore specific media files or large directories)
+# We want to keep the JSONs but ignore the images in batch1
+data/batch1/*.jpg
+data/batch1/*.jpeg
+data/batch1/*.png
+data/batch1/*.mp4
+# Or if you want to ignore the whole images directory if strict:
+# data/batch1/
+
+# VS Code
+.vscode/
+
+# System
+.DS_Store
+Thumbs.db
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
