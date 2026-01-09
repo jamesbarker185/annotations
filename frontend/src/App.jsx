@@ -69,6 +69,25 @@ function App() {
         setSelectedBoxId(null);
     };
 
+    // Keyboard shortcuts for deletion
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (selectedBoxId === null) return;
+
+            // Prevent deletion if user is typing in an input
+            const activeTag = document.activeElement.tagName;
+            if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
+
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                e.preventDefault(); // Prevent browser back navigation
+                handleDeleteBox();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [selectedBoxId, tasks, currentIdx]);
+
     const handleTextChange = (e) => {
         if (selectedBoxId === null) return;
         const text = e.target.value;

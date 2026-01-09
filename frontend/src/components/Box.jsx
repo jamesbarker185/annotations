@@ -61,6 +61,9 @@ const Box = ({
                 e.stopPropagation();
                 onSelect();
             }}
+            onMouseDown={(e) => {
+                e.stopPropagation();
+            }}
             style={{
                 border: isSelected ? '2px solid #00d2ff' : '2px solid rgba(0, 210, 255, 0.5)',
                 backgroundColor: isSelected ? 'rgba(0, 210, 255, 0.1)' : 'transparent',

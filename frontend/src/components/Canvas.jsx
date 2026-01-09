@@ -112,7 +112,9 @@ const Canvas = ({
 // We render the image. We put a div ON TOP of the image with same dimensions.
 const CanvasWrapper = ({ imageSrc, annotations, selectedBoxId, onBoxSelect, onBoxChange, onAddBox }) => {
     const imgRef = useRef(null);
+    const containerRef = useRef(null);
     const [dims, setDims] = useState(null);
+    const [drawing, setDrawing] = useState(null); // { startX, startY, currentX, currentY } (in %)
 
     const onImgLoad = (e) => {
         setDims({ w: e.target.clientWidth, h: e.target.clientHeight });
@@ -129,14 +131,70 @@ const CanvasWrapper = ({ imageSrc, annotations, selectedBoxId, onBoxSelect, onBo
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    const handleCreate = (e) => {
+    const handleMouseDown = (e) => {
+        // Only start drawing if clicking the background overlay itself
+        if (e.target !== e.currentTarget) return;
         if (!dims) return;
-        // Create relative to this container
+
         const rect = e.currentTarget.getBoundingClientRect();
-        const x = ((e.clientX - rect.left) / dims.w) * 100;
-        const y = ((e.clientY - rect.top) / dims.h) * 100;
-        onAddBox({ x, y, width: 10, height: 5 });
+        const startX = ((e.clientX - rect.left) / dims.w) * 100;
+        const startY = ((e.clientY - rect.top) / dims.h) * 100;
+
+        setDrawing({
+            startX,
+            startY,
+            currentX: startX,
+            currentY: startY
+        });
     };
+
+    const handleMouseMove = (e) => {
+        if (!drawing || !dims) return;
+
+        const rect = containerRef.current.getBoundingClientRect();
+        const currentX = ((e.clientX - rect.left) / dims.w) * 100;
+        const currentY = ((e.clientY - rect.top) / dims.h) * 100;
+
+        setDrawing({
+            ...drawing,
+            currentX: Math.max(0, Math.min(100, currentX)),
+            currentY: Math.max(0, Math.min(100, currentY))
+        });
+    };
+
+    const handleMouseUp = () => {
+        if (!drawing) return;
+
+        const { startX, startY, currentX, currentY } = drawing;
+        const x = Math.min(startX, currentX);
+        const y = Math.min(startY, currentY);
+        const width = Math.abs(currentX - startX);
+        const height = Math.abs(currentY - startY);
+
+        // Only add if box has meaningful size (at least 0.5% of image)
+        if (width > 0.5 && height > 0.5) {
+            onAddBox({ x, y, width, height });
+        } else {
+            // If just a click, deselect any box
+            onBoxSelect(null);
+        }
+
+        setDrawing(null);
+    };
+
+    useEffect(() => {
+        if (drawing) {
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+        } else {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        }
+        return () => {
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [drawing, dims]);
 
     return (
         <div style={{
@@ -146,7 +204,8 @@ const CanvasWrapper = ({ imageSrc, annotations, selectedBoxId, onBoxSelect, onBo
             alignItems: 'center',
             background: '#0a0a0a',
             overflow: 'hidden',
-            padding: 20
+            padding: 20,
+            userSelect: 'none'
         }}>
             <div style={{ position: 'relative' }}>
                 <img
@@ -163,16 +222,16 @@ const CanvasWrapper = ({ imageSrc, annotations, selectedBoxId, onBoxSelect, onBo
                 />
                 {dims && (
                     <div
-                        onClick={(e) => {
-                            if (e.target === e.currentTarget) handleCreate(e);
-                        }}
+                        ref={containerRef}
+                        onMouseDown={handleMouseDown}
                         style={{
                             position: 'absolute',
                             top: 0,
                             left: 0,
                             width: dims.w,
                             height: dims.h,
-                            // border: '1px solid red' // debug
+                            cursor: 'crosshair',
+                            zIndex: 5
                         }}
                     >
                         {annotations.map((ann, i) => (
@@ -185,6 +244,20 @@ const CanvasWrapper = ({ imageSrc, annotations, selectedBoxId, onBoxSelect, onBo
                                 onChange={(newBox) => onBoxChange(i, newBox)}
                             />
                         ))}
+
+                        {/* Drawing Preview Box */}
+                        {drawing && (
+                            <div style={{
+                                position: 'absolute',
+                                left: `${Math.min(drawing.startX, drawing.currentX)}%`,
+                                top: `${Math.min(drawing.startY, drawing.currentY)}%`,
+                                width: `${Math.abs(drawing.currentX - drawing.startX)}%`,
+                                height: `${Math.abs(drawing.currentY - drawing.startY)}%`,
+                                border: '2px dashed #00d2ff',
+                                backgroundColor: 'rgba(0, 210, 255, 0.1)',
+                                pointerEvents: 'none'
+                            }} />
+                        )}
                     </div>
                 )}
             </div>
